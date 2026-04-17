@@ -1,0 +1,173 @@
+{
+  "name": "Weather Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "50 23 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-node",
+      "name": "23:50 daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "latitude", "value": "40.7128" },
+            { "name": "longitude", "value": "-74.0060" },
+            { "name": "hourly", "value": "weather_code" },
+            { "name": "forecast_days", "value": "1" },
+            { "name": "timezone", "value": "America/New_York" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "openmeteo-node",
+      "name": "Open-Meteo Forecast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 180]
+    },
+    {
+      "parameters": {
+        "url": "https://weather.googleapis.com/v1/forecast/hours:lookup",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "location.latitude", "value": "40.7128" },
+            { "name": "location.longitude", "value": "-74.0060" },
+            { "name": "hours", "value": "6" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "google-node",
+      "name": "Google Weather Forecast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "openmeteo-condition",
+              "leftValue": "={{ $json.hourly.weather_code.slice(0, 6).some(code => [96, 99].includes(code)) }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-openmeteo",
+      "name": "IF Weather Open-Meteo",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "google-condition",
+              "leftValue": "={{ $json.forecastHours.some(h => ['HAIL', 'HAIL_SHOWERS'].includes(h.weatherCondition.type)) }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-google",
+      "name": "IF Weather Google",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 420]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-node",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { alert: true } }];"
+      },
+      "id": "dedup-node",
+      "name": "Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "TU_CHAT_ID",
+        "text": "⚠️ *Weather Alert*\n\nWeather conditions detected in your area.\n\nStay prepared.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-node",
+      "name": "Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1300, 300]
+    }
+  ],
+  "connections": {
+    "23:50 daily": {
+      "main": [
+        [
+          { "node": "Open-Meteo Forecast", "type": "main", "index": 0 },
+          { "node": "Google Weather Forecast", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Open-Meteo Forecast": {
+      "main": [[{ "node": "IF Weather Open-Meteo", "type": "main", "index": 0 }]]
+    },
+    "Google Weather Forecast": {
+      "main": [[{ "node": "IF Weather Google", "type": "main", "index": 0 }]]
+    },
+    "IF Weather Open-Meteo": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 0 }]]
+    },
+    "IF Weather Google": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 1 }]]
+    },
+    "Merge": {
+      "main": [[{ "node": "Deduplicate", "type": "main", "index": 0 }]]
+    },
+    "Dedup": {
+      "main": [[{ "node": "Telegram Notification", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

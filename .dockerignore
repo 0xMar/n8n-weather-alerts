@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+npm-debug.log
+
+# Build outputs
+dist/
+build/
+
+# Environment files (keep .env.example, exclude .env)
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+n8n-data/*.log
+
+# Backups (don't copy to image)
+n8n-data/backups/
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
