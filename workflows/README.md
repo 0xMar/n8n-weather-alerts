@@ -8,6 +8,7 @@ Receive alerts when adverse weather conditions are detected, so you can prepare 
 
 ## How it works
 
+### Main Flow
 1. **Daily Weather Monitor**: Scheduled cron (default: 23:50 daily)
 2. **Fetch Open-Meteo Data**: Free API — detects weather codes 96 and 99
 3. **Fetch Google Weather**: API requiring key — detects `HAIL` and `HAIL_SHOWERS`
@@ -15,6 +16,11 @@ Receive alerts when adverse weather conditions are detected, so you can prepare 
 5. **Combine Alert Sources**: Merge node combines TRUE paths
 6. **Consolidate & Deduplicate**: Code node creates single consolidated alert with severity level
 7. **Send Telegram Alert**: Dynamic message with location, severity, sources, and action required
+
+### Error Handling Flow
+- **Error Trigger**: Monitors ALL nodes for failures (independent from main flow)
+- **Format Error Message**: Extracts error details (failed node, error message, execution ID)
+- **Send Error Alert**: Sends error notification via Telegram if any node fails
 
 ## Setup
 
@@ -53,8 +59,9 @@ Receive alerts when adverse weather conditions are detected, so you can prepare 
 
 ### 6. Configure Chat ID
 
-1. In the "Telegram Notification" node, replace `TU_CHAT_ID` with your real Chat ID
-2. Save the workflow
+1. In the "Send Telegram Alert" node, replace `TU_CHAT_ID` with your real Chat ID
+2. In the "Send Error Alert" node, replace `TU_CHAT_ID` with the same Chat ID (or a different one if you want error alerts elsewhere)
+3. Save the workflow
 
 ### 7. Verify timezone
 
@@ -104,3 +111,37 @@ In the "Schedule Trigger" node, modify the cron expression:
 
 ⚠️ This is an automated alert from your weather monitoring system.
 ```
+
+## Error alert example
+
+If any node fails, you'll receive:
+
+```
+🔴 WORKFLOW ERROR
+
+Workflow: Weather Alert
+Failed Node: Fetch Open-Meteo Data
+Error: Request failed with status code 503
+Execution ID: 12345
+Time: 4/18/2026, 11:50:00 PM
+
+⚠️ Please check the workflow and fix the issue.
+```
+
+## Troubleshooting
+
+### Not receiving alerts?
+
+- Check that the workflow is **Active**
+- Verify your **Chat ID** is correct in BOTH Telegram nodes
+- Confirm your **bot token** is valid
+- Check n8n execution logs: `Executions → Failed`
+
+### API errors?
+
+- **Open-Meteo**: Free service, usually reliable. If failing, try again later.
+- **Google Weather**: Requires valid API key. Check credentials in n8n.
+
+### Workflow failing silently?
+
+The Error Trigger will notify you of ANY failure. Check your Telegram for error messages.

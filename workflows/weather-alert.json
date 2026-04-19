@@ -138,6 +138,39 @@
       "position": [1700, 450]
     },
     {
+      "id": "error-trigger-node",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [1700, 100],
+      "parameters": {}
+    },
+    {
+      "id": "format-error-node",
+      "name": "Format Error Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 100],
+      "parameters": {
+        "jsCode": "// Get error details from the trigger\nconst error = $input.first().json;\n\n// Format error message\nconst workflowName = error.workflow.name || 'Unknown';\nconst nodeName = error.execution.lastNodeExecuted || 'Unknown';\nconst errorMessage = error.execution.error?.message || 'No details available';\nconst executionId = error.execution.id;\nconst timestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    errorAlert: true,\n    workflow: workflowName,\n    failedNode: nodeName,\n    message: errorMessage,\n    executionId: executionId,\n    timestamp: timestamp,\n    formattedMessage: `🔴 WORKFLOW ERROR\\n\\nWorkflow: ${workflowName}\\nFailed Node: ${nodeName}\\nError: ${errorMessage}\\nExecution ID: ${executionId}\\nTime: ${new Date(timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' })}\\n\\n⚠️ Please check the workflow and fix the issue.`\n  }\n}];"
+      }
+    },
+    {
+      "id": "error-telegram-node",
+      "name": "Send Error Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2100, 100],
+      "parameters": {
+        "chatId": "TU_CHAT_ID",
+        "text": "={{ $json.formattedMessage }}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "appendAttribution": false
+        }
+      }
+    },
+    {
       "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Sticky Note1",
       "type": "n8n-nodes-base.stickyNote",
@@ -201,6 +234,19 @@
         "height": 180,
         "content": "🗺️ LOCATION CONFIGURATION\n\nCurrent Location: NYC (40.7128, -74.0060)\n\nTo change location, update BOTH APIs:\n• Open-Meteo: latitude, longitude parameters\n• Google: location.latitude, location.longitude parameters"
       }
+    },
+    {
+      "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1700, -80],
+      "parameters": {
+        "color": 6,
+        "width": 400,
+        "height": 160,
+        "content": "🚨 ERROR HANDLING\n\nError Trigger monitors ALL nodes.\nIf any node fails, sends alert with:\n• Failed node name\n• Error message\n• Execution ID\n• Timestamp\n\n⚠️ Separate from main alert flow"
+      }
     }
   ],
   "connections": {
@@ -229,6 +275,12 @@
     },
     "Consolidate & Deduplicate Alerts": {
       "main": [[{ "node": "Send Telegram Alert", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": {
+      "main": [[{ "node": "Format Error Message", "type": "main", "index": 0 }]]
+    },
+    "Format Error Message": {
+      "main": [[{ "node": "Send Error Alert", "type": "main", "index": 0 }]]
     }
   },
   "pinData": {},
