@@ -13,10 +13,10 @@
         }
       },
       "id": "cron-node",
-      "name": "23:50 daily",
+      "name": "Daily Weather Monitor",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [240, 450]
     },
     {
       "parameters": {
@@ -34,10 +34,10 @@
         "options": {}
       },
       "id": "openmeteo-node",
-      "name": "Open-Meteo Forecast",
+      "name": "Fetch Open-Meteo Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 180]
+      "position": [560, 280]
     },
     {
       "parameters": {
@@ -53,10 +53,10 @@
         "options": {}
       },
       "id": "google-node",
-      "name": "Google Weather Forecast",
+      "name": "Fetch Google Weather",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 420]
+      "position": [560, 620]
     },
     {
       "parameters": {
@@ -75,10 +75,10 @@
         "options": {}
       },
       "id": "if-openmeteo",
-      "name": "IF Weather Open-Meteo",
+      "name": "Check Storm/Hail Risk (Open-Meteo)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 180]
+      "position": [880, 280]
     },
     {
       "parameters": {
@@ -97,73 +97,138 @@
         "options": {}
       },
       "id": "if-google",
-      "name": "IF Weather Google",
+      "name": "Check Storm/Hail Risk (Google)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 420]
+      "position": [880, 620]
     },
     {
       "parameters": {
         "mode": "append"
       },
       "id": "merge-node",
-      "name": "Merge",
+      "name": "Combine Alert Sources",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [960, 300]
+      "position": [1200, 450]
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { alert: true } }];"
+        "jsCode": "// Get all input items from both APIs\nconst items = $input.all();\n\nif (items.length === 0) {\n  return [];\n}\n\n// Track which sources detected risk\nconst sources = [];\nlet timestamp = new Date().toISOString();\n\nitems.forEach((item, index) => {\n  // Determine source based on position (0 = Open-Meteo, 1 = Google)\n  if (index === 0) {\n    sources.push('Open-Meteo');\n  } else if (index === 1) {\n    sources.push('Google Weather');\n  }\n});\n\n// Return single consolidated alert\nreturn [{\n  json: {\n    alert: true,\n    severity: sources.length > 1 ? 'high' : 'moderate',\n    sources: sources,\n    sourcesCount: sources.length,\n    message: sources.length > 1 \n      ? `⚠️ Multiple weather sources (${sources.join(', ')}) detected storm/hail risk!`\n      : `⚠️ ${sources[0]} detected storm/hail risk!`,\n    timestamp: timestamp,\n    location: 'NYC (40.7128, -74.0060)',\n    actionRequired: 'Stay indoors and monitor local weather updates'\n  }\n}];"
       },
       "id": "dedup-node",
-      "name": "Deduplicate",
+      "name": "Consolidate & Deduplicate Alerts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 300]
+      "position": [1400, 450]
     },
     {
       "parameters": {
         "chatId": "TU_CHAT_ID",
-        "text": "⚠️ *Weather Alert*\n\nWeather conditions detected in your area.\n\nStay prepared.",
+        "text": "={{ $json.message }}\n\n📍 *Location:* {{ $json.location }}\n🔴 *Severity:* {{ $json.severity.toUpperCase() }}\n📡 *Sources:* {{ $json.sources.join(', ') }}\n🕐 *Detected:* {{ new Date($json.timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' }) }}\n\n💡 *Action:* {{ $json.actionRequired }}\n\n⚠️ _This is an automated alert from your weather monitoring system._",
         "additionalFields": {
           "parse_mode": "Markdown",
           "appendAttribution": false
         }
       },
       "id": "telegram-node",
-      "name": "Telegram Notification",
+      "name": "Send Telegram Alert",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1300, 300]
+      "position": [1700, 450]
+    },
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 80],
+      "parameters": {
+        "color": 3,
+        "width": 420,
+        "height": 240,
+        "content": "🌩️ DUAL-SOURCE WEATHER MONITOR\n\nThis workflow checks TWO independent weather APIs daily:\n• Open-Meteo (free, no API key required)\n• Google Weather API (requires API key)\n\nChecks run at 23:50 daily for NYC area (40.7128, -74.0060).\n\n⚠️ CONFIGURE: Update Telegram chatId before activating!"
+      }
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [560, 80],
+      "parameters": {
+        "color": 3,
+        "width": 380,
+        "height": 240,
+        "content": "📊 API CONDITIONS CHECKED\n\nOPEN-METEO API:\n• Weather codes: 96, 99\n• These indicate thunderstorm with hail\n\nGOOGLE WEATHER API:\n• Conditions: HAIL, HAIL_SHOWERS\n• Checks next 6 hours (hours=6 parameter)"
+      }
+    },
+    {
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [960, 80],
+      "parameters": {
+        "color": 2,
+        "width": 400,
+        "height": 240,
+        "content": "🔀 DEDUPLICATION LOGIC\n\nBoth IF nodes send TRUE paths to Merge node.\nConsolidate & Deduplicate Alerts node:\n• Combines multiple sources into ONE alert\n• Assigns severity: HIGH if both APIs agree\n• Generates intelligent message with source list\n• Prevents duplicate notifications"
+      }
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0123-defa-234567890123",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1360, 80],
+      "parameters": {
+        "color": 1,
+        "width": 420,
+        "height": 240,
+        "content": "📱 TELEGRAM CONFIGURATION\n\nREQUIRED SETUP STEPS:\n1. Create bot via @BotFather\n2. Get your chat ID (use @userinfobot)\n3. Replace 'TU_CHAT_ID' with actual ID\n\nDYNAMIC MESSAGE TEMPLATE:\nUses consolidated data including severity level, sources list, timestamp, location, and action recommendations."
+      }
+    },
+    {
+      "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [560, 800],
+      "parameters": {
+        "color": 5,
+        "width": 400,
+        "height": 180,
+        "content": "🗺️ LOCATION CONFIGURATION\n\nCurrent Location: NYC (40.7128, -74.0060)\n\nTo change location, update BOTH APIs:\n• Open-Meteo: latitude, longitude parameters\n• Google: location.latitude, location.longitude parameters"
+      }
     }
   ],
   "connections": {
-    "23:50 daily": {
+    "Daily Weather Monitor": {
       "main": [
         [
-          { "node": "Open-Meteo Forecast", "type": "main", "index": 0 },
-          { "node": "Google Weather Forecast", "type": "main", "index": 0 }
+          { "node": "Fetch Open-Meteo Data", "type": "main", "index": 0 },
+          { "node": "Fetch Google Weather", "type": "main", "index": 0 }
         ]
       ]
     },
-    "Open-Meteo Forecast": {
-      "main": [[{ "node": "IF Weather Open-Meteo", "type": "main", "index": 0 }]]
+    "Fetch Open-Meteo Data": {
+      "main": [[{ "node": "Check Storm/Hail Risk (Open-Meteo)", "type": "main", "index": 0 }]]
     },
-    "Google Weather Forecast": {
-      "main": [[{ "node": "IF Weather Google", "type": "main", "index": 0 }]]
+    "Fetch Google Weather": {
+      "main": [[{ "node": "Check Storm/Hail Risk (Google)", "type": "main", "index": 0 }]]
     },
-    "IF Weather Open-Meteo": {
-      "main": [[{ "node": "Merge", "type": "main", "index": 0 }]]
+    "Check Storm/Hail Risk (Open-Meteo)": {
+      "main": [[{ "node": "Combine Alert Sources", "type": "main", "index": 0 }]]
     },
-    "IF Weather Google": {
-      "main": [[{ "node": "Merge", "type": "main", "index": 1 }]]
+    "Check Storm/Hail Risk (Google)": {
+      "main": [[{ "node": "Combine Alert Sources", "type": "main", "index": 1 }]]
     },
-    "Merge": {
-      "main": [[{ "node": "Deduplicate", "type": "main", "index": 0 }]]
+    "Combine Alert Sources": {
+      "main": [[{ "node": "Consolidate & Deduplicate Alerts", "type": "main", "index": 0 }]]
     },
-    "Dedup": {
-      "main": [[{ "node": "Telegram Notification", "type": "main", "index": 0 }]]
+    "Consolidate & Deduplicate Alerts": {
+      "main": [[{ "node": "Send Telegram Alert", "type": "main", "index": 0 }]]
     }
   },
   "pinData": {},

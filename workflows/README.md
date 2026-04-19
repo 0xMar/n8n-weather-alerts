@@ -8,11 +8,13 @@ Receive alerts when adverse weather conditions are detected, so you can prepare 
 
 ## How it works
 
-1. **Trigger**: Scheduled cron (default: 23:50 daily)
-2. **Source 1**: Open-Meteo (free, no API key) — detects weather codes 96 and 99 in the next 6 hours
-3. **Source 2**: Google Weather API (pay-as-you-go) — detects `HAIL` and `HAIL_SHOWERS` condition types
-4. **Deduplicate**: If both sources detect conditions, message is sent only once
-5. **Notification**: Sends message via Telegram
+1. **Daily Weather Monitor**: Scheduled cron (default: 23:50 daily)
+2. **Fetch Open-Meteo Data**: Free API — detects weather codes 96 and 99
+3. **Fetch Google Weather**: API requiring key — detects `HAIL` and `HAIL_SHOWERS`
+4. **Check Storm/Hail Risk**: IF nodes verify conditions from each API
+5. **Combine Alert Sources**: Merge node combines TRUE paths
+6. **Consolidate & Deduplicate**: Code node creates single consolidated alert with severity level
+7. **Send Telegram Alert**: Dynamic message with location, severity, sources, and action required
 
 ## Setup
 
@@ -91,9 +93,14 @@ In the "Schedule Trigger" node, modify the cron expression:
 ## Alert example
 
 ```
-⚠️ Weather Alert
+⚠️ Multiple weather sources (Open-Meteo, Google Weather) detected storm/hail risk!
 
-Weather conditions detected in your area.
+📍 Location: NYC (40.7128, -74.0060)
+🔴 Severity: HIGH
+📡 Sources: Open-Meteo, Google Weather
+🕐 Detected: 4/18/2026, 11:50:00 PM
 
-Stay prepared.
+💡 Action: Stay indoors and monitor local weather updates
+
+⚠️ This is an automated alert from your weather monitoring system.
 ```
